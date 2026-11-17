@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel to GIF</title>
+<style>
+  body { margin: 32px auto; padding: 0 16px; max-width: 680px; font: 16px "Times New Roman", Times, serif; color: black; background: white }
+  button, input, select { font: inherit }
+  form, .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 }
+  #link { flex: 1; min-width: 0 }
+  fieldset { margin: 20px 0 0; min-width: 0 }
+  #screen { min-height: 190px; display: grid; place-items: center; border: 1px solid #ccc; text-align: center; padding: 8px }
+  video, img { display: block; max-width: 100%; max-height: 480px }
+  [hidden] { display: none }
+  input[type=number] { width: 4em }
+  #message:empty { display: none }
+  #result { margin-top: 12px }
+</style>
+<main>
+  <h1>Reel to GIF</h1>
+  <form id="import">
+    <label for="link">Link</label>
+    <input id="link" type="url" placeholder="Paste a Reel or video link" required>
+    <button>Load</button>
+  </form>
+  <input id="file" type="file" accept="video/*" hidden>
+  <button id="choose" type="button">Choose video file</button>
+  <p id="message" role="status"></p>
+  <fieldset id="editor">
+    <legend>Edit</legend>
+    <div id="screen">
+      <span id="empty">Load a video to edit.</span>
+      <video id="video" controls muted playsinline hidden></video>
+    </div>
+    <fieldset id="settings" disabled>
+      <legend>GIF settings</legend>
+      <div class="row">
+        <label>Start (s) <input id="start" type="number" min="0" step="0.01" value="0"></label>
+        <label>End (s) <input id="end" type="number" min="0" step="0.01"></label>
+        <button id="preview" type="button">Preview trim</button>
+      </div>
+      <div class="row">
+        <label>Width <select id="width"><option>240</option><option selected>360</option><option>480</option></select></label>
+        <label>FPS <select id="fps"><option>8</option><option selected>12</option><option>20</option></select></label>
+        <label>Speed <select id="speed"><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+        <button id="make" type="button">Make GIF</button>
+      </div>
+    </fieldset>
+    <div id="result" hidden>
+      <img id="gif" alt="Exported GIF preview">
+      <a id="download" download="reel.gif">Download GIF</a>
+    </div>
+  </fieldset>
+</main>
+<script src="gif.js"></script>
+<script src="editor.js"></script>
+</html>
