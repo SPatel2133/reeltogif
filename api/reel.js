@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
-const videoLimit = 50 * 1024 * 1024;
+const videoLimit = 80 * 1024 * 1024;
 const instagram = 'https://www.instagram.com';
 
 function publicMediaUrl(html) {
@@ -45,10 +45,12 @@ export default async function handler(req, res) {
     for (const page of pages) {
       if (page.status === 'fulfilled' && page.value) urls.set(page.value.href, page.value);
     }
+    let oversized = false;
     for (const url of urls.values()) {
       const video = await fetch(url, { redirect: 'error', signal }).catch(() => null);
       const type = video?.headers.get('content-type')?.split(';')[0];
       const size = Number(video?.headers.get('content-length'));
+      if (video?.ok && type?.startsWith('video/') && size > videoLimit) oversized = true;
       if (!video?.ok || !type?.startsWith('video/') || !video.body || size <= 0 || size > videoLimit) {
         await video?.body?.cancel();
         continue;
@@ -59,6 +61,7 @@ export default async function handler(req, res) {
       await pipeline(Readable.fromWeb(video.body), res);
       return;
     }
+    if (oversized) return res.status(413).json({ error: 'This Reel exceeds the 80 MiB import limit.' });
     return res.status(422).json({ error: 'Instagram did not serve a video for this link. Try another public Reel.' });
   } catch {
     if (res.headersSent) return res.destroy();
