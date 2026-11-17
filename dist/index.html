@@ -14,6 +14,16 @@
   #stage { position: relative; max-width: 100%; overflow: hidden }
   #crop-guide { position: absolute; pointer-events: none }
   #crop-guide:not([hidden]) { outline: 1px solid white; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 60%) }
+  #crop-handles { position: absolute; inset: 0; pointer-events: none }
+  .crop-handle {
+    position: absolute; transform: translate(-50%, -50%); width: 24px; height: 24px;
+    display: grid; place-items: center; pointer-events: auto; touch-action: none;
+  }
+  .crop-handle::after { content: ""; width: 9px; height: 9px; background: white; border: 1px solid black }
+  .crop-handle[data-edges="0"], .crop-handle[data-edges="2"] { cursor: ns-resize }
+  .crop-handle[data-edges="1"], .crop-handle[data-edges="3"] { cursor: ew-resize }
+  .crop-handle[data-edges="0,3"], .crop-handle[data-edges="2,1"] { cursor: nwse-resize }
+  .crop-handle[data-edges="0,1"], .crop-handle[data-edges="2,3"] { cursor: nesw-resize }
   [hidden] { display: none }
   input[type=number] { width: 4em }
   #message:empty { display: none }
@@ -36,6 +46,7 @@
       <div id="stage" hidden>
         <video id="video" controls muted playsinline></video>
         <div id="crop-guide" hidden aria-hidden="true"></div>
+        <div id="crop-handles" hidden aria-hidden="true"></div>
       </div>
     </div>
     <fieldset id="settings" disabled>
@@ -48,10 +59,11 @@
       <fieldset>
         <legend>Crop edges (%)</legend>
         <div class="row">
-          <label>Left <input id="crop-left" type="number" min="0" max="99" value="0" required></label>
-          <label>Top <input id="crop-top" type="number" min="0" max="99" value="0" required></label>
-          <label>Right <input id="crop-right" type="number" min="0" max="99" value="0" required></label>
-          <label>Bottom <input id="crop-bottom" type="number" min="0" max="99" value="0" required></label>
+          <label>Left <input id="crop-left" type="number" min="0" max="99" step="0.1" value="0" required></label>
+          <label>Top <input id="crop-top" type="number" min="0" max="99" step="0.1" value="0" required></label>
+          <label>Right <input id="crop-right" type="number" min="0" max="99" step="0.1" value="0" required></label>
+          <label>Bottom <input id="crop-bottom" type="number" min="0" max="99" step="0.1" value="0" required></label>
+          <button id="edit-crop" type="button" aria-pressed="false">Freeform crop</button>
           <button id="reset-crop" type="button">Reset crop</button>
         </div>
         <p id="crop-error" role="status" hidden>Leave at least 1% of the frame in each direction.</p>

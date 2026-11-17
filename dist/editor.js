@@ -3,6 +3,8 @@ const video = byId('video');
 const stage = byId('stage');
 const cropGuide = byId('crop-guide');
 const cropError = byId('crop-error');
+const cropHandles = byId('crop-handles');
+const cropButton = byId('edit-crop');
 const cropInputs = ['top', 'right', 'bottom', 'left'].map(edge => byId('crop-' + edge));
 const settings = byId('settings');
 const start = byId('start');
@@ -29,6 +31,7 @@ function loadVideo(url, local = false) {
   localUrl = local ? url : undefined;
   settings.disabled = true;
   result.hidden = true;
+  setCropMode(false);
   stage.hidden = true;
   byId('empty').hidden = false;
   video.crossOrigin = 'anonymous';
@@ -113,7 +116,19 @@ function showCrop() {
   const edges = cropEdges();
   cropError.hidden = Boolean(edges);
   cropGuide.hidden = !edges || edges.every(edge => edge === 0);
-  if (edges) cropGuide.style.inset = edges.map(edge => edge + '%').join(' ');
+  if (!edges) {
+    cropHandles.hidden = true;
+    return;
+  }
+  cropGuide.style.inset = edges.map(edge => edge + '%').join(' ');
+  cropHandles.hidden = cropButton.getAttribute('aria-pressed') !== 'true';
+  const [top, right, bottom, left] = edges;
+  const x = [left, (left + 100 - right) / 2, 100 - right];
+  const y = [top, (top + 100 - bottom) / 2, 100 - bottom];
+  for (const { element, row, column } of handles) {
+    element.style.left = 'clamp(12px, ' + x[column] + '%, calc(100% - 12px))';
+    element.style.top = 'clamp(12px, ' + y[row] + '%, calc(100% - 12px))';
+  }
 }
 
 function resetCrop() {
@@ -121,6 +136,52 @@ function resetCrop() {
   showCrop();
 }
 
+const handles = [
+  [0, 0, [0, 3]], [0, 1, [0]], [0, 2, [0, 1]],
+  [1, 0, [3]],                 [1, 2, [1]],
+  [2, 0, [2, 3]], [2, 1, [2]], [2, 2, [2, 1]],
+].map(([row, column, sides]) => {
+  const element = document.createElement('div');
+  element.className = 'crop-handle';
+  element.dataset.edges = sides.join(',');
+  cropHandles.append(element);
+  let drag;
+  element.addEventListener('pointerdown', event => {
+    const edges = cropEdges();
+    if (busy || !edges || event.button !== 0 || !event.isPrimary) return;
+    drag = { edges, x: event.clientX, y: event.clientY };
+    element.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  element.addEventListener('pointermove', event => {
+    if (!drag || !element.hasPointerCapture(event.pointerId)) return;
+    const bounds = stage.getBoundingClientRect();
+    const dx = 100 * (event.clientX - drag.x) / bounds.width;
+    const dy = 100 * (event.clientY - drag.y) / bounds.height;
+    const changes = [dy, -dx, -dy, dx];
+    for (const side of sides) {
+      const opposite = drag.edges[(side + 2) % 4];
+      const next = Math.max(0, Math.min(99 - opposite, drag.edges[side] + changes[side]));
+      cropInputs[side].value = next.toFixed(1);
+    }
+    showCrop();
+  });
+  element.addEventListener('lostpointercapture', () => { drag = undefined; });
+  return { element, row, column };
+});
+
+function setCropMode(active) {
+  cropButton.setAttribute('aria-pressed', String(active));
+  cropButton.textContent = active ? 'Done cropping' : 'Freeform crop';
+  video.controls = !active;
+  if (active) {
+    video.pause();
+    previewEnd = undefined;
+  }
+  showCrop();
+}
+
+cropButton.onclick = () => setCropMode(cropButton.getAttribute('aria-pressed') !== 'true');
 for (const input of cropInputs) input.addEventListener('input', showCrop);
 byId('reset-crop').onclick = resetCrop;
 
@@ -143,6 +204,7 @@ video.addEventListener('timeupdate', () => {
 byId('preview').onclick = async () => {
   try {
     const { from, to } = trim();
+    setCropMode(false);
     video.pause();
     video.currentTime = from;
     video.playbackRate = Number(byId('speed').value);
@@ -177,6 +239,7 @@ byId('make').onclick = async () => {
   settings.disabled = choose.disabled = true;
   for (const control of source.elements) control.disabled = true;
   video.pause();
+  setCropMode(false);
   video.controls = false;
   previewEnd = undefined;
   try {
