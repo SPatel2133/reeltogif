@@ -1,5 +1,9 @@
 const byId = id => document.getElementById(id);
 const video = byId('video');
+const stage = byId('stage');
+const cropGuide = byId('crop-guide');
+const cropError = byId('crop-error');
+const cropInputs = ['top', 'right', 'bottom', 'left'].map(edge => byId('crop-' + edge));
 const settings = byId('settings');
 const start = byId('start');
 const end = byId('end');
@@ -25,7 +29,7 @@ function loadVideo(url, local = false) {
   localUrl = local ? url : undefined;
   settings.disabled = true;
   result.hidden = true;
-  video.hidden = true;
+  stage.hidden = true;
   byId('empty').hidden = false;
   video.crossOrigin = 'anonymous';
   video.src = url;
@@ -83,10 +87,11 @@ video.addEventListener('loadeddata', () => {
     status('Choose a video with a finite duration.');
     return;
   }
-  video.hidden = false;
+  stage.hidden = false;
   byId('empty').hidden = true;
   settings.disabled = false;
   start.max = end.max = String(video.duration);
+  resetCrop();
   start.value = '0';
   end.value = String(Math.min(5, video.duration));
   status('');
@@ -94,6 +99,30 @@ video.addEventListener('loadeddata', () => {
 video.addEventListener('error', () => {
   status('The video could not be loaded. Try choosing a saved video file.');
 });
+
+function cropEdges() {
+  const edges = cropInputs.map(input => input.valueAsNumber);
+  const [top, right, bottom, left] = edges;
+  if (cropInputs.some(input => !input.validity.valid) || top + bottom > 99 || left + right > 99) {
+    return null;
+  }
+  return edges;
+}
+
+function showCrop() {
+  const edges = cropEdges();
+  cropError.hidden = Boolean(edges);
+  cropGuide.hidden = !edges || edges.every(edge => edge === 0);
+  if (edges) cropGuide.style.inset = edges.map(edge => edge + '%').join(' ');
+}
+
+function resetCrop() {
+  for (const input of cropInputs) input.value = '0';
+  showCrop();
+}
+
+for (const input of cropInputs) input.addEventListener('input', showCrop);
+byId('reset-crop').onclick = resetCrop;
 
 function trim() {
   const from = start.valueAsNumber;
@@ -157,9 +186,16 @@ byId('make').onclick = async () => {
     const count = Math.max(1, Math.ceil((to - from) * fps));
     if (count > 240) throw new Error('Select a shorter trim or lower FPS. GIFs are limited to 240 frames.');
     const canvas = document.createElement('canvas');
-    const width = Math.min(Number(byId('width').value), video.videoWidth);
+    const edges = cropEdges();
+    if (!edges) throw new Error(cropError.textContent);
+    const [top, right, bottom, left] = edges;
+    const x = Math.floor(video.videoWidth * left / 100);
+    const y = Math.floor(video.videoHeight * top / 100);
+    const cropWidth = Math.ceil(video.videoWidth * (100 - right) / 100) - x;
+    const cropHeight = Math.ceil(video.videoHeight * (100 - bottom) / 100) - y;
+    const width = Math.min(Number(byId('width').value), cropWidth);
     canvas.width = width;
-    canvas.height = Math.max(1, Math.round(width * video.videoHeight / video.videoWidth));
+    canvas.height = Math.max(1, Math.round(width * cropHeight / cropWidth));
     if (canvas.width * canvas.height * count * 4 > 180_000_000) {
       throw new Error('Use a smaller width, shorter trim, or lower FPS.');
     }
@@ -169,7 +205,7 @@ byId('make').onclick = async () => {
       const time = from + frame / fps;
       status('Reading frame ' + (frame + 1) + ' of ' + count + '…');
       await seek(time);
-      context.drawImage(video, 0, 0, width, canvas.height);
+      context.drawImage(video, x, y, cropWidth, cropHeight, 0, 0, width, canvas.height);
       const delay = Math.max(20, Math.round(1000 * Math.min(1 / fps, to - time) / speed));
       encoder.addFrame(context, { copy: true, delay });
     }

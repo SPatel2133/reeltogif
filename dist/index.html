@@ -11,6 +11,9 @@
   fieldset { margin: 20px 0 0; min-width: 0 }
   #screen { min-height: 190px; display: grid; place-items: center; border: 1px solid #ccc; text-align: center; padding: 8px }
   video, img { display: block; max-width: 100%; max-height: 480px }
+  #stage { position: relative; max-width: 100%; overflow: hidden }
+  #crop-guide { position: absolute; pointer-events: none }
+  #crop-guide:not([hidden]) { outline: 1px solid white; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 60%) }
   [hidden] { display: none }
   input[type=number] { width: 4em }
   #message:empty { display: none }
@@ -30,7 +33,10 @@
     <legend>Edit</legend>
     <div id="screen">
       <span id="empty">Load a video to edit.</span>
-      <video id="video" controls muted playsinline hidden></video>
+      <div id="stage" hidden>
+        <video id="video" controls muted playsinline></video>
+        <div id="crop-guide" hidden aria-hidden="true"></div>
+      </div>
     </div>
     <fieldset id="settings" disabled>
       <legend>GIF settings</legend>
@@ -39,6 +45,17 @@
         <label>End (s) <input id="end" type="number" min="0" step="0.01"></label>
         <button id="preview" type="button">Preview trim</button>
       </div>
+      <fieldset>
+        <legend>Crop edges (%)</legend>
+        <div class="row">
+          <label>Left <input id="crop-left" type="number" min="0" max="99" value="0" required></label>
+          <label>Top <input id="crop-top" type="number" min="0" max="99" value="0" required></label>
+          <label>Right <input id="crop-right" type="number" min="0" max="99" value="0" required></label>
+          <label>Bottom <input id="crop-bottom" type="number" min="0" max="99" value="0" required></label>
+          <button id="reset-crop" type="button">Reset crop</button>
+        </div>
+        <p id="crop-error" role="status" hidden>Leave at least 1% of the frame in each direction.</p>
+      </fieldset>
       <div class="row">
         <label>Width <select id="width"><option>240</option><option selected>360</option><option>480</option></select></label>
         <label>FPS <select id="fps"><option>8</option><option selected>12</option><option>20</option></select></label>
